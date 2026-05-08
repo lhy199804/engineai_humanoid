@@ -16,8 +16,8 @@ public:
     double omega_des[3];     // -1 ~ 1
     double variable[3];
     double step_height;
-    int gait_type = 1;
-    int last_gait_type = 1;
+    int gait_type = 0;
+    int last_gait_type = 0;
 
     int imu_linvel_calibration_mode = 0;
     int last_imu_linvel_calibration_mode = 0; // used to record the pre button state of the trigger

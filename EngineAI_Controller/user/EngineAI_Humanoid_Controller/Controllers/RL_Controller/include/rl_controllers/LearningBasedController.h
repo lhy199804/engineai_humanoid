@@ -13,6 +13,12 @@
 #include "Lowpassfilter.h"
 #include "common/include/Controllers/close_chain_mapping.h"
 
+enum class PolicyMode
+{
+  STAND,
+  WALK
+};
+
 class LearningBasedController
 {
 public:
@@ -54,7 +60,10 @@ private:
   std::string _policyFileDirectory;
 
   std::shared_ptr<Ort::Env> _onnxEnvPtr;
-  std::unique_ptr<Ort::Session> _sessionPtr;
+  std::unique_ptr<Ort::Session> _standSessionPtr;
+  std::unique_ptr<Ort::Session> _walkSessionPtr;
+  Ort::Session *_activeSessionPtr = nullptr;
+  PolicyMode _currentPolicyMode = PolicyMode::STAND;
 
   std::vector<const char *> _inputNames;
   std::vector<const char *> _outputNames;

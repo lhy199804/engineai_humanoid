@@ -50,6 +50,7 @@ install(FILES config/zqsa01_rl.yaml
         DESTINATION ${CMAKE_INSTALL_PREFIX}/config
         )
 
-install(FILES policy/zqsa01/zqsa01_policy.onnx
+install(FILES policy/zqsa01/zqsa01_policy_stand.onnx
+        policy/zqsa01/zqsa01_policy_walk.onnx
         DESTINATION ${CMAKE_INSTALL_PREFIX}/policy/zqsa01
         )

@@ -14,6 +14,7 @@ bool LearningBasedController::init()
   actuatedDofNum_ = jointNames.size();
 
   _loopCount = 0;
+  gait_phase_ = 0.0;
 
   _joint_dim = actuatedDofNum_;
 
@@ -85,17 +86,25 @@ void LearningBasedController::policyInference()
 
 bool LearningBasedController::loadPolicyModel()
 {
-  std::string policyFilePath = "../policy/zqsa01/zqsa01_policy.onnx";
+  std::string standPolicyPath = "../policy/zqsa01/zqsa01_policy_stand.onnx";
+  std::string walkPolicyPath = "../policy/zqsa01/zqsa01_policy_walk.onnx";
 
-  _policyFileDirectory = policyFilePath;
-  std::cout << "Load Onnx model from path : " << policyFilePath << std::endl;
-
-  // create env
+  // create env (shared by all sessions)
   _onnxEnvPtr.reset(new Ort::Env(ORT_LOGGING_LEVEL_WARNING, "LeggedOnnxController"));
-  // create session
   Ort::SessionOptions sessionOptions;
   sessionOptions.SetIntraOpNumThreads(1);
-  _sessionPtr = std::make_unique<Ort::Session>(*_onnxEnvPtr, policyFilePath.c_str(), sessionOptions);
+
+  // Load stand policy
+  std::cout << "Load Stand Onnx model from path : " << standPolicyPath << std::endl;
+  _standSessionPtr = std::make_unique<Ort::Session>(*_onnxEnvPtr, standPolicyPath.c_str(), sessionOptions);
+
+  // Load walk policy
+  std::cout << "Load Walk Onnx model from path : " << walkPolicyPath << std::endl;
+  _walkSessionPtr = std::make_unique<Ort::Session>(*_onnxEnvPtr, walkPolicyPath.c_str(), sessionOptions);
+
+  // Default to stand policy
+  _activeSessionPtr = _standSessionPtr.get();
+
   // get input and output info
   _inputNames.clear();
   _outputNames.clear();
@@ -103,26 +112,26 @@ bool LearningBasedController::loadPolicyModel()
   _outputShapes.clear();
   Ort::AllocatorWithDefaultOptions allocator;
 
-  for (size_t i = 0; i < _sessionPtr->GetInputCount(); i++)
+  /*assume all models have same I/O structure, read from stand as default*/
+  for (size_t i = 0; i < _standSessionPtr->GetInputCount(); i++)
   {
-    auto inputnamePtr = _sessionPtr->GetInputNameAllocated(i, allocator);
+    auto inputnamePtr = _standSessionPtr->GetInputNameAllocated(i, allocator);
     _inputNodeNameAllocatedStrings.push_back(std::move(inputnamePtr));
     _inputNames.push_back(_inputNodeNameAllocatedStrings.back().get());
 
-    _inputShapes.push_back(_sessionPtr->GetInputTypeInfo(i).GetTensorTypeAndShapeInfo().GetShape());
-    std::vector<int64_t> shape = _sessionPtr->GetInputTypeInfo(i).GetTensorTypeAndShapeInfo().GetShape();
-  }
-  for (size_t i = 0; i < _sessionPtr->GetOutputCount(); i++)
-  {
-    auto outputnamePtr = _sessionPtr->GetOutputNameAllocated(i, allocator);
-    _outputNodeNameAllocatedStrings.push_back(std::move(outputnamePtr));
-    _outputNames.push_back(_outputNodeNameAllocatedStrings.back().get());
-    std::cout << _sessionPtr->GetOutputNameAllocated(i, allocator).get() << std::endl;
-    _outputShapes.push_back(_sessionPtr->GetOutputTypeInfo(i).GetTensorTypeAndShapeInfo().GetShape());
-    std::vector<int64_t> shape = _sessionPtr->GetOutputTypeInfo(i).GetTensorTypeAndShapeInfo().GetShape();
+    _inputShapes.push_back(_standSessionPtr->GetInputTypeInfo(i).GetTensorTypeAndShapeInfo().GetShape());
   }
 
-  std::cout << "Load Onnx model successfully !!!" << std::endl;
+  for (size_t i = 0; i < _standSessionPtr->GetOutputCount(); i++)
+  {
+    auto outputnamePtr = _standSessionPtr->GetOutputNameAllocated(i, allocator);
+    _outputNodeNameAllocatedStrings.push_back(std::move(outputnamePtr));
+    _outputNames.push_back(_outputNodeNameAllocatedStrings.back().get());
+    std::cout << _standSessionPtr->GetOutputNameAllocated(i, allocator).get() << std::endl;
+    _outputShapes.push_back(_standSessionPtr->GetOutputTypeInfo(i).GetTensorTypeAndShapeInfo().GetShape());
+  }
+
+  std::cout << "Load Onnx models successfully !!! (Stand + Walk)" << std::endl;
   return true;
 }
 
@@ -261,7 +270,7 @@ void LearningBasedController::computeActions()
                                                         _inputShapes[0].data(), _inputShapes[0].size()));
   // run inference
   Ort::RunOptions runOptions;
-  std::vector<Ort::Value> outputValues = _sessionPtr->Run(runOptions, _inputNames.data(), inputValues.data(), 1, _outputNames.data(), 1);
+  std::vector<Ort::Value> outputValues = _activeSessionPtr->Run(runOptions, _inputNames.data(), inputValues.data(), 1, _outputNames.data(), 1);
 
   for (int i = 0; i < _actionsSize; i++)
   {
@@ -409,6 +418,13 @@ void LearningBasedController::computeObservation()
     command[2] = 0.0;
     command[3] = 0.0;
     command[4] = 0.0;
+
+    if (_currentPolicyMode != PolicyMode::STAND)
+    {
+      _activeSessionPtr = _standSessionPtr.get();
+      _currentPolicyMode = PolicyMode::STAND;
+      std::cout << "[Policy Switch] Switched to STAND policy" << std::endl;
+    }
   }
   else
   {
@@ -418,6 +434,13 @@ void LearningBasedController::computeObservation()
     command[3] = _command.y;
     command[4] = _command.yaw;
     still_flag = false;
+
+    if (_currentPolicyMode != PolicyMode::WALK)
+    {
+      _activeSessionPtr = _walkSessionPtr.get();
+      _currentPolicyMode = PolicyMode::WALK;
+      std::cout << "[Policy Switch] Switched to WALK policy" << std::endl;
+    }
   }
 
   // actions
