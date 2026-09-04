@@ -59,16 +59,13 @@
 struct rc_control_command_lcmt {
     double mode;              // RC_mode 枚举: 0=OFF 1=PASSIVE 2=STAND_UP 7=BALANCE_STAND 8=LOCK_JOINT 11=LOCOMOTION
     int32_t gait_type;        // 0=站立(自训练模型) 1=行走(SA01 出厂模型)
-    double v_des[3];          // 期望速度 [-1,1]
-    double omega_des[3];      // 期望角速度 [-1,1]
-    double p_des[2];
-    double rpy_des[3];
-    double height_variation;
-    double step_height;
+    double v_des[3];          // 期望速度 [-1,1]，实际生效 v_des[0..1]
+    double omega_des[3];      // 期望角速度 [-1,1]，实际生效 omega_des[2]
 }
 ```
 
 - 通道名：`"rc_control_command"`
+- 字段只保留罗技手柄路径实际写入的字段；`p_des`/`rpy_des`/`height_variation`/`step_height` 仅被 Taranis/AT9s 遥控路径使用、本机器人下游不消费，已剔除。数组长度保持 [3] 与 `rc_control_settings` 对齐，便于整体拷贝。
 - 用 `scripts/make_types.sh` 重新生成 cpp/java/python 绑定（该脚本会全量再生成，属既有流程）
 
 ### 4.2 接收与写入（rt_rc_interface + HardwareBridge）
@@ -78,8 +75,8 @@ struct rc_control_command_lcmt {
 - 全局标志 `bool network_control_active = false;`（与 `rc_control` 同一互斥锁 `lcm_get_set_mutex` 保护）
 - `void set_rc_control_from_network(const rc_control_command_lcmt *msg)`：
   1. **合法性检查（与手柄约束一致）**：`mode` 必须在 {OFF, PASSIVE, STAND_UP, BALANCE_STAND, LOCK_JOINT, LOCOMOTION} 内；`mode == LOCOMOTION` 仅当当前 `rc_control.mode == STAND_UP`（等价手柄 LB+X 的前置条件）。不满足 → 打印警告并忽略整条消息，机器人保持原状态。
-  2. `v_des`/`omega_des`/`p_des`/`rpy_des`/`height_variation`/`step_height` 裁剪到 [-1,1]。
-  3. 加锁写入 `rc_control` 全部上述字段与 `gait_type`；置 `network_control_active = true`；打印模式切换日志（与手柄路径的日志风格一致）。
+  2. `v_des`/`omega_des` 裁剪到 [-1,1]。
+  3. 加锁写入 `rc_control` 的 `mode`/`gait_type`/`v_des`/`omega_des`；置 `network_control_active = true`；打印模式切换日志（与手柄路径的日志风格一致）。
 
 `robot/src/HardwareBridge.cpp`：
 
