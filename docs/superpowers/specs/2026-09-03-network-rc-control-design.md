@@ -76,7 +76,7 @@ struct rc_control_command_lcmt {
 - `void set_rc_control_from_network(const rc_control_command_lcmt *msg)`：
   1. **合法性检查（与手柄约束一致）**：`mode` 必须在 {OFF, PASSIVE, STAND_UP, BALANCE_STAND, LOCK_JOINT, LOCOMOTION} 内；`mode == LOCOMOTION` 仅当当前 `rc_control.mode == STAND_UP`（等价手柄 LB+X 的前置条件）。不满足 → 打印警告并忽略整条消息，机器人保持原状态。
   2. `v_des`/`omega_des` 裁剪到 [-1,1]。
-  3. 加锁写入 `rc_control` 的 `mode`/`gait_type`/`v_des`/`omega_des`；置 `network_control_active = true`；打印模式切换日志（与手柄路径的日志风格一致）。
+  3. 加锁写入 `rc_control` 的 `mode`/`v_des`/`omega_des`；`gait_type` **仅在（写入后）模式为 LOCOMOTION 时应用**（等价手柄 A 键只在 LOCOMOTION 内生效的约束）；置 `network_control_active = true`；打印模式切换日志（与手柄路径的日志风格一致）。
 
 `robot/src/HardwareBridge.cpp`：
 
