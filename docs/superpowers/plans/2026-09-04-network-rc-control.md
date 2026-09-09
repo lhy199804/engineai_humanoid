@@ -612,7 +612,7 @@ python3 send_rc_command.py --mode 11 --gait 1 --vx 0.0   # 停速
 python3 send_rc_command.py --mode 11 --gait 0       # 回站立(等效A键)
 python3 send_rc_command.py --mode 8                 # LOCK_JOINT 保护(等效LB+RB)
 ```
-Expected: 板上依次打印 `[RC] Network command applied: mode=... gait_type=...`；机器人动作与手柄按键逐个等效
+Expected: 每次**模式变化**时板上打印 `[RC] Network command applied: mode=... gait_type=...`（同模式内更新 gait/速度静默接受、不打印，属正常设计，以机器人行为/lcm-spy 确认）；机器人动作与手柄按键逐个等效
 
 - [ ] **Step 4: 仲裁验证**
 
@@ -626,6 +626,7 @@ Expected: 两种控制源可按上述规则双向切换，无互相覆盖抖动
 
 ```markdown
 3. (V-Hw01.00.00-Fw01.02.00)新增网络控制功能：外部程序经以太网LCM发送rc_control_command_lcmt消息（通道rc_control_command，字段mode/gait_type/v_des/omega_des）等效手柄按键控制机器人；手柄任意按键按下即夺回控制权；手柄原有控制逻辑不变。
+   注意事项：a) 网络端按离散指令发送（每条消息均会重新接管控制权，连续流式发送会阻止手柄夺回）；b) 夺回会同时执行该按键自身动作：按A夺回会顺带切换站立/行走，按B/RB会进入校准模式——LOCOMOTION中无副作用的夺回键为单独按LB或START；c) 手柄缺失或中途拔出时无法夺回，且无网络活性超时，行走中需保证网络端或手柄至少一方可用；d) 板上applied日志仅在模式变化时打印，同模式内更新gait/速度静默接受（以机器人行为或lcm-spy确认）。
 ```
 
 - [ ] **Step 6: 提交**

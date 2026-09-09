@@ -1,6 +1,8 @@
 #include <pthread.h>
 #include <rt/rt_rc_interface.h>
 #include "Utilities/EdgeTrigger.h"
+#include "rc_control_command_lcmt.hpp"
+#include "rt/rt_network_command.h"
 #include <string.h> // memcpy
 #include <stdio.h>
 #include <rt/rt_sbus.h>
@@ -23,6 +25,66 @@ void get_rc_control_settings(void *settings)
     pthread_mutex_lock(&lcm_get_set_mutex);
     v_memcpy(settings, &rc_control, sizeof(rc_control_settings));
     pthread_mutex_unlock(&lcm_get_set_mutex);
+}
+
+// 网络控制权标志: true 表示当前由网络指令控制，手柄线程只监控按键不覆盖 rc_control
+volatile bool network_control_active = false;
+
+void set_rc_control_from_network(const void *msg)
+{
+    const rc_control_command_lcmt *cmd = static_cast<const rc_control_command_lcmt *>(msg);
+
+    rc_control_command_lcmt clamped = *cmd;
+    clamp_rc_network_command(clamped);
+
+    int ret = 0;
+    double prev_mode = 0.0;
+    double new_mode = 0.0;
+    int new_gait = 0;
+
+    pthread_mutex_lock(&lcm_get_set_mutex);
+
+    ret = validate_rc_network_command(clamped, rc_control.mode);
+    if (ret == 0)
+    {
+        prev_mode = rc_control.mode;
+        rc_control.mode = clamped.mode;
+        // 与手柄一致: 摇杆量/步态仅在 LOCOMOTION 模式下生效
+        if (rc_control.mode == RC_mode::LOCOMOTION)
+        {
+            rc_control.gait_type = clamped.gait_type;
+            rc_control.v_des[0] = clamped.v_des[0];
+            rc_control.v_des[1] = clamped.v_des[1];
+            rc_control.v_des[2] = clamped.v_des[2];
+            rc_control.omega_des[0] = clamped.omega_des[0];
+            rc_control.omega_des[1] = clamped.omega_des[1];
+            rc_control.omega_des[2] = clamped.omega_des[2];
+        }
+        network_control_active = true;
+        new_mode = rc_control.mode;
+        new_gait = rc_control.gait_type;
+    }
+    else
+    {
+        prev_mode = rc_control.mode;
+    }
+
+    pthread_mutex_unlock(&lcm_get_set_mutex);
+
+    if (ret == 0)
+    {
+        // 仅在模式真实变化时打印，避免同模式连续指令刷屏（与手柄只在触发沿打印一致）
+        if (new_mode != prev_mode)
+        {
+            printf("[RC] Network command applied: mode=%.0f gait_type=%d\n",
+                   new_mode, new_gait);
+        }
+    }
+    else
+    {
+        printf("[RC] Network command REJECTED (ret=%d, requested mode=%.0f, current mode=%.0f)\n",
+               ret, clamped.mode, prev_mode);
+    }
 }
 
 // void get_rc_channels(void *settings) {
@@ -338,6 +400,23 @@ void sbus_packet_complete_logitech()
 {
     logitech_data data;
     update_logitech_data(&data);
+
+    if (network_control_active)
+    {
+        // 网络控制期间手柄线程只监控按键；任意按键按下 -> 手柄夺回控制权
+        if (data.A > BUTTERN_PRESS_THRESHOULD || data.B > BUTTERN_PRESS_THRESHOULD ||
+            data.X > BUTTERN_PRESS_THRESHOULD || data.Y > BUTTERN_PRESS_THRESHOULD ||
+            data.LB > BUTTERN_PRESS_THRESHOULD || data.RB > BUTTERN_PRESS_THRESHOULD ||
+            data.START > BUTTERN_PRESS_THRESHOULD || data.BACK > BUTTERN_PRESS_THRESHOULD)
+        {
+            network_control_active = false;
+            printf("[RC] Joystick takes back control\n");
+        }
+        else
+        {
+            return; // 本帧不覆盖 rc_control，保持网络最后写入值
+        }
+    }
 
     if (data.LB > BUTTERN_PRESS_THRESHOULD && data.START > BUTTERN_PRESS_THRESHOULD)
         selected_mode_logitech = RC_mode::PASSIVE;

@@ -19,6 +19,7 @@
 #include "control_parameter_request_lcmt.hpp"
 #include "control_parameter_respones_lcmt.hpp"
 #include "gamepad_lcmt.hpp"
+#include "rc_control_command_lcmt.hpp"
 #include "leg_control_data_lcmt.hpp"
 #include "leg_control_command_lcmt.hpp"
 #include "motor.h"
@@ -42,6 +43,8 @@ public:
     ~HardwareBridge() { delete _robotRunner; }
     void handleGamepadLCM(const lcm::ReceiveBuffer *rbuf, const std::string &chan,
                           const gamepad_lcmt *msg);
+    void handleRCControlCommandLCM(const lcm::ReceiveBuffer *rbuf, const std::string &chan,
+                                   const rc_control_command_lcmt *msg);
 
     void handleInterfaceLCM();
     void handleControlParameter(const lcm::ReceiveBuffer *rbuf,

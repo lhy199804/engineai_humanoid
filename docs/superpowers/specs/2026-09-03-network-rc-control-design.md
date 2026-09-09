@@ -74,8 +74,8 @@ struct rc_control_command_lcmt {
 
 - 全局标志 `bool network_control_active = false;`（与 `rc_control` 同一互斥锁 `lcm_get_set_mutex` 保护）
 - `void set_rc_control_from_network(const rc_control_command_lcmt *msg)`：
-  1. **合法性检查（与手柄约束一致）**：`mode` 必须在 {OFF, PASSIVE, STAND_UP, BALANCE_STAND, LOCK_JOINT, LOCOMOTION} 内；`mode == LOCOMOTION` 仅当当前 `rc_control.mode == STAND_UP`（等价手柄 LB+X 的前置条件）。不满足 → 打印警告并忽略整条消息，机器人保持原状态。
-  2. `v_des`/`omega_des` 裁剪到 [-1,1]。
+  1. **合法性检查（与手柄约束一致）**：`mode` 必须在 {OFF, PASSIVE, STAND_UP, BALANCE_STAND, LOCK_JOINT, LOCOMOTION} 内；同模式消息（`msg.mode == 当前 mode`）为幂等更新、直接接受（等价手柄在 LOCOMOTION 内持续写入摇杆量的行为，支持连续速度/步态指令流）；跨模式进入 `LOCOMOTION` 仅当当前 `rc_control.mode == STAND_UP`（等价手柄 LB+X 的前置条件）。不满足 → 打印警告并忽略整条消息，机器人保持原状态。
+  2. `v_des`/`omega_des` 裁剪到 [-1,1]，NaN 分量置 0，±Inf 裁剪到 ±1。
   3. 加锁写入 `rc_control` 的 `mode`/`v_des`/`omega_des`；`gait_type` **仅在（写入后）模式为 LOCOMOTION 时应用**（等价手柄 A 键只在 LOCOMOTION 内生效的约束）；置 `network_control_active = true`；打印模式切换日志（与手柄路径的日志风格一致）。
 
 `robot/src/HardwareBridge.cpp`：
@@ -118,8 +118,14 @@ if (network_control_active)
 |---|---|
 | 网络无消息 | `rc_control` 保持最后一次网络写入值；不做断连自动回退（YAGNI，后续可扩展超时回退） |
 | `mode` 非法 / LOCOMOTION 前置条件不满足 | 拒绝整条消息并打印警告，机器人保持原状态（安全方向） |
-| LCM 线程与 SBUS 线程并发 | 写路径全部经 `lcm_get_set_mutex`；`network_control_active` 读侧容忍竞态（最坏晚 100ms 夺回，安全方向） |
+| LCM 线程与 SBUS 线程并发 | 网络写路径经 `lcm_get_set_mutex`（printf 在锁外）；手柄写路径为**既有**的无锁行为，两写入者并发窗口有界（≤1 个 100ms 帧）且自愈，双方都只产生合法指令值，无安全风险；`network_control_active`（volatile bool）读侧容忍竞态（最坏晚 100ms 夺回，安全方向） |
 | ESTOP 安全 | FSM 的 `safetyPreCheck`/`SafetyChecker` 独立于控制源，网络控制同样受安全保护 |
+
+**已知限制（设计评审确认接受，写入 README2 说明）：**
+
+1. **连续流式发送者会反复重新夺权**：每次被接受的网络指令都会再次置 `network_control_active = true`。当前按"离散指令发送"（如 `send_rc_command.py` 手动逐条发）设计，夺回后可稳定保持；若未来引入周期流式速度遥操作，需先定义重接权策略（如夺回后需显式重接权令牌）。
+2. **手柄缺失/中途拔出时无法夺回**：手柄驱动在启动时打开设备且无重连逻辑；同时没有网络活性超时。机器人行走中若网络端崩溃且手柄不可用，机器人将保持最后指令——后续建议在 2ms 控制环增加网络活性超时（本次 YAGNI）。
+3. **夺回帧会同时执行该按键自身动作**：夺回是"按键按下"触发的，该帧仍会走手柄正常逻辑（与现有手柄行为一致）——如在 LOCOMOTION 中按 A 夺回会顺带切换步态、按 B 会进入欧拉角校准。README2 中建议用 A 键夺回（行走时顺带切回站立）。
 
 ## 5. 测试计划
 

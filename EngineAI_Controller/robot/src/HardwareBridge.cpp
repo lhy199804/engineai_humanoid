@@ -15,6 +15,7 @@
 
 #include "HardwareBridge.h"
 #include "rt/rt_sbus.h"
+#include "rt/rt_rc_interface.h"
 #include "Utilities/Utilities_print.h"
 
 #define PI 3.1415
@@ -70,6 +71,7 @@ void HardwareBridge::initCommon()
     printf("[HardwareBridge] Subscribe LCM\n");
     _interfaceLCM.subscribe("interface", &HardwareBridge::handleGamepadLCM, this);
     _interfaceLCM.subscribe("interface_request", &HardwareBridge::handleControlParameter, this);
+    _interfaceLCM.subscribe("rc_control_command", &HardwareBridge::handleRCControlCommandLCM, this);
 
     printf("[HardwareBridge] Start interface LCM handler\n");
 
@@ -132,6 +134,18 @@ void HardwareBridge::handleGamepadLCM(const lcm::ReceiveBuffer *rbuf,
     (void)rbuf;
     (void)chan;
     _gamepadCommand.set(msg);
+}
+
+/*!
+ * LCM Handler for network rc command message
+ */
+void HardwareBridge::handleRCControlCommandLCM(const lcm::ReceiveBuffer *rbuf,
+                                               const std::string &chan,
+                                               const rc_control_command_lcmt *msg)
+{
+    (void)rbuf;
+    (void)chan;
+    set_rc_control_from_network(msg);
 }
 
 /*!

@@ -71,7 +71,6 @@ class state_estimator_lcmt(object):
         return self
     _decode_one = staticmethod(_decode_one)
 
-    _hash = None
     def _get_hash_recursive(parents):
         if state_estimator_lcmt in parents: return 0
         tmphash = (0x9953d2c5cb42e84c) & 0xffffffffffffffff
@@ -85,4 +84,8 @@ class state_estimator_lcmt(object):
             state_estimator_lcmt._packed_fingerprint = struct.pack(">Q", state_estimator_lcmt._get_hash_recursive([]))
         return state_estimator_lcmt._packed_fingerprint
     _get_packed_fingerprint = staticmethod(_get_packed_fingerprint)
+
+    def get_hash(self):
+        """Get the LCM hash of the struct"""
+        return struct.unpack(">Q", state_estimator_lcmt._get_packed_fingerprint())[0]
 

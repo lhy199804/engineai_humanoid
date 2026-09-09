@@ -71,7 +71,6 @@ class leg_control_command_lcmt(object):
         return self
     _decode_one = staticmethod(_decode_one)
 
-    _hash = None
     def _get_hash_recursive(parents):
         if leg_control_command_lcmt in parents: return 0
         tmphash = (0x93bfbc95a989bb67) & 0xffffffffffffffff
@@ -85,4 +84,8 @@ class leg_control_command_lcmt(object):
             leg_control_command_lcmt._packed_fingerprint = struct.pack(">Q", leg_control_command_lcmt._get_hash_recursive([]))
         return leg_control_command_lcmt._packed_fingerprint
     _get_packed_fingerprint = staticmethod(_get_packed_fingerprint)
+
+    def get_hash(self):
+        """Get the LCM hash of the struct"""
+        return struct.unpack(">Q", leg_control_command_lcmt._get_packed_fingerprint())[0]
 

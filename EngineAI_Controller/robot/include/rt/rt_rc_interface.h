@@ -5,6 +5,8 @@
 #ifndef ZQ_HUMANOID_RT_RC_INTERFACE_H
 #define ZQ_HUMANOID_RT_RC_INTERFACE_H
 
+#include <cstddef> // v_memcpy 声明使用 size_t，头文件自包含
+
 class rc_control_settings
 {
 public:
@@ -70,6 +72,8 @@ void sbus_packet_complete_at9s();
 void sbus_packet_complete_logitech();
 
 void get_rc_control_settings(void *settings);
+
+void set_rc_control_from_network(const void *msg);
 
 void *v_memcpy(void *dest, volatile void *src, size_t n);
 

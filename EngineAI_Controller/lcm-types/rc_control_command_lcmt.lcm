@@ -1,0 +1,10 @@
+struct rc_control_command_lcmt {
+    // mode 取值（RC_mode 子集）: 0=OFF 1=PASSIVE 2=STAND_UP 7=BALANCE_STAND 8=LOCK_JOINT 11=LOCOMOTION
+    double mode;
+    // gait_type: 0=站立(自训练模型) 1=行走(SA01 出厂模型)，仅 LOCOMOTION 模式生效
+    int32_t gait_type;
+    // 期望速度 [-1,1]，实际生效 v_des[0..1]
+    double v_des[3];
+    // 期望角速度 [-1,1]，实际生效 omega_des[2]
+    double omega_des[3];
+}

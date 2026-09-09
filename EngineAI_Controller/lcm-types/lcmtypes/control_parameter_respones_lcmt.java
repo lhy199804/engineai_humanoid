@@ -85,11 +85,11 @@ public final class control_parameter_respones_lcmt implements lcm.lcm.LCMEncodab
     public void _decodeRecursive(DataInput ins) throws IOException
     {
         this.name = new byte[(int) 64];
-        ins.readFully(this.name, 0, 64); 
+        ins.readFully(this.name, 0, (int) 64); 
         this.requestNumber = ins.readLong();
  
         this.value = new byte[(int) 64];
-        ins.readFully(this.value, 0, 64); 
+        ins.readFully(this.value, 0, (int) 64); 
         this.parameterKind = ins.readByte();
  
         this.requestKind = ins.readByte();
