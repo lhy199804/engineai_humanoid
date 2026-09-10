@@ -61,9 +61,7 @@ git add -A lcm-types/
 git commit -s -m "[New]: 新增rc_control_command_lcmt消息类型及生成绑定
 
 1. 网络控制指令消息：mode/gait_type/v_des/omega_des
-2. 重新生成cpp/java/python绑定
-
-Co-Authored-By: Claude <noreply@anthropic.com>"
+2. 重新生成cpp/java/python绑定"
 ```
 
 ---
@@ -259,9 +257,7 @@ git add robot/include/rt/rt_network_command.h robot/src/rt/rt_network_command.cp
 git commit -s -m "[New]: 新增网络指令校验与裁剪纯逻辑及单元测试
 
 1. validate_rc_network_command: mode合法性+LOCOMOTION前置条件(与手柄LB+X一致)
-2. clamp_rc_network_command: v_des/omega_des裁剪[-1,1]，gait_type归一化0/1
-
-Co-Authored-By: Claude <noreply@anthropic.com>"
+2. clamp_rc_network_command: v_des/omega_des裁剪[-1,1]，gait_type归一化0/1"
 ```
 
 ---
@@ -347,9 +343,7 @@ git add robot/include/rt/rt_rc_interface.h robot/src/rt/rt_rc_interface.cpp
 git commit -s -m "[New]: rt_rc_interface新增网络指令写入函数set_rc_control_from_network
 
 1. LCM消息经校验裁剪后加锁写入rc_control，置network_control_active
-2. 摇杆量/步态仅LOCOMOTION模式生效，与手柄行为一致
-
-Co-Authored-By: Claude <noreply@anthropic.com>"
+2. 摇杆量/步态仅LOCOMOTION模式生效，与手柄行为一致"
 ```
 
 ---
@@ -394,9 +388,7 @@ git add robot/src/rt/rt_rc_interface.cpp
 git commit -s -m "[New]: 手柄夺回式仲裁-网络控制期间sbus线程只监控按键
 
 1. 网络控制期间手柄帧不覆盖rc_control
-2. 任意按键按下(摇杆不参与)即夺回控制权
-
-Co-Authored-By: Claude <noreply@anthropic.com>"
+2. 任意按键按下(摇杆不参与)即夺回控制权"
 ```
 
 ---
@@ -467,9 +459,7 @@ Expected: 编译通过
 git add robot/include/HardwareBridge.h robot/src/HardwareBridge.cpp
 git commit -s -m "[New]: HardwareBridge订阅rc_control_command通道并转发写入
 
-1. initCommon注册订阅，回调调用set_rc_control_from_network
-
-Co-Authored-By: Claude <noreply@anthropic.com>"
+1. initCommon注册订阅，回调调用set_rc_control_from_network"
 ```
 
 ---
@@ -560,9 +550,7 @@ Expected: 无输出（通过）
 git add scripts/send_rc_command.py
 git commit -s -m "[New]: 新增网络控制测试发送脚本send_rc_command.py
 
-1. 支持mode/gait/vx/vy/wz参数，经LCM通道rc_control_command发送
-
-Co-Authored-By: Claude <noreply@anthropic.com>"
+1. 支持mode/gait/vx/vy/wz参数，经LCM通道rc_control_command发送"
 ```
 
 ---
@@ -635,9 +623,7 @@ Expected: 两种控制源可按上述规则双向切换，无互相覆盖抖动
 git add README2.md
 git commit -s -m "[Modify]: README2新增网络控制功能版本记录
 
-1. 记录网络控制消息格式、通道名与手柄夺回式仲裁
-
-Co-Authored-By: Claude <noreply@anthropic.com>"
+1. 记录网络控制消息格式、通道名与手柄夺回式仲裁"
 ```
 
 ---
