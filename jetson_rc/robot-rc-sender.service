@@ -1,0 +1,22 @@
+[Unit]
+Description=Robot RC relay (Logitech gamepad -> LCM) on Jetson
+# 等网络就绪后再启动，避免开机时组播路由还没建好
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# 每次启动前确保与板端相连的网口支持组播并加好 224.0.0.0/4 组播路由
+# （LCM 组播报文依赖这条路由走对应网卡发出）
+ExecStartPre=/bin/sh -c 'IFACE="{{IFACE}}"; ip link set dev "$IFACE" multicast on 2>/dev/null || true; (ip route replace 224.0.0.0/4 dev "$IFACE" 2>/dev/null || ip route add 224.0.0.0/4 dev "$IFACE" 2>/dev/null) || true'
+Environment=LCM_DEFAULT_URL={{LCM_URL}}
+# lcm python 绑定装到 /usr/local 时位于 site-packages，显式补进 PYTHONPATH
+Environment=PYTHONPATH={{APPDIR}}:/usr/local/lib/python3.8/site-packages:/usr/local/lib/python3.10/site-packages:/usr/local/lib/python3.11/site-packages
+ExecStart={{PYTHON}} {{APPDIR}}/gamepad_rc_sender.py --device {{DEVICE}}
+# 手柄可热插拔，程序内部自动重连；进程异常则自动拉起
+Restart=always
+RestartSec=2
+# 服务退出/重启前，程序(SIGTERM)会尽量发一条 0 速指令
+
+[Install]
+WantedBy=multi-user.target
